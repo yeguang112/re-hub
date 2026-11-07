@@ -113,6 +113,7 @@ switch (cmd) {
     const args = { ...out };
     if (args.timeout) { args.timeoutMs = Number(args.timeout); delete args.timeout; }
     if (args.argsJson) { args.args = JSON.parse(args.argsJson); delete args.argsJson; }
+    if (args.paramsJson) { args.params = JSON.parse(args.paramsJson); delete args.paramsJson; }
     const res = await execBackend(backend, { ...args, op });
     print(res);
     break;
