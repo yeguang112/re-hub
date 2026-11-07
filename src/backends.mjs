@@ -443,6 +443,48 @@ export async function execPeSieve(args = {}, cfg = loadConfig()) {
 }
 
 /* ------------------------------------------------------------------ */
+/* Craft Anything (pure-Rust engine: CLI + MCP)                        */
+/* ------------------------------------------------------------------ */
+
+export async function execCraftAnything(args = {}, cfg = loadConfig()) {
+  const exe = (cfg.craftAnythingExe && fs.existsSync(cfg.craftAnythingExe))
+    ? cfg.craftAnythingExe
+    : findByName(path.join(cfg.toolsDir || path.join(PROJECT_ROOT, 'tools'), 'craft-anything'), 'craft-anything-cli.exe');
+  if (!exe) {
+    const err = new Error('Craft Anything 未安装：node scripts/bootstrap.mjs --only craft-anything --yes，或把 craft-anything-cli.exe 路径写入 config.json 的 craftAnythingExe');
+    err.code = 'backend-unavailable';
+    throw err;
+  }
+  const op = args.op || 'version';
+  const flags = [];
+  for (const [k, v] of Object.entries(args.params || {})) {
+    const flag = `--${k.replace(/_/g, '-')}`;
+    if (v === true) flags.push(flag);
+    else if (v === false || v == null) { /* omit */ }
+    else if (Array.isArray(v)) for (const x of v) flags.push(flag, String(x));
+    else flags.push(flag, String(v));
+  }
+  let argv;
+  if (op === 'version') argv = ['--version'];
+  else if (op === 'doctor') argv = ['doctor'];
+  else if (op === 'commands') argv = ['commands'];
+  else if (op === 'tool') {
+    if (!args.tool) throw new Error('tool 需要 args.tool（工具 id，如 native_function_pseudocode 或 native-function-pseudocode）');
+    argv = [String(args.tool).replace(/_/g, '-'), ...(args.args || []), ...flags];
+  } else if (op === 'raw') {
+    if (!Array.isArray(args.args) || !args.args.length) throw new Error('raw 需要 args.args 数组，例如 ["commands"]');
+    argv = [...args.args, ...flags];
+  } else if (op === 'mcp') {
+    throw new Error('craft-anything mcp 是常驻 MCP server；请在 config.mcpBackends 注册后用 rehub_mcp backend=craft-anything 调用');
+  } else {
+    throw new Error(`craft-anything 不支持 op: ${op}（version/doctor/commands/tool/raw）`);
+  }
+  const r = await run(exe, argv, { timeoutMs: args.timeoutMs || 300000, maxBytes: cfg.maxOutputBytes });
+  const data = parseJsonMaybe(r.stdout);
+  return normalize('craft-anything', op, r, { data, argv });
+}
+
+/* ------------------------------------------------------------------ */
 /* Dispatcher                                                          */
 /* ------------------------------------------------------------------ */
 
@@ -457,7 +499,8 @@ export async function execBackend(backend, args = {}, cfg = loadConfig()) {
     case 'uia': return execUia(args, cfg);
     case 'x64dbg': return execX64dbg(args, cfg);
     case 'pe-sieve': return execPeSieve(args, cfg);
+    case 'craft-anything': return execCraftAnything(args, cfg);
     default:
-      throw new Error(`未知 backend: ${backend}。可用：rea/jadx/apktool/ghidra/adb/frida/uia/x64dbg/pe-sieve，以及 mcp:<name>（走 rehub_mcp）`);
+      throw new Error(`未知 backend: ${backend}。可用：rea/jadx/apktool/ghidra/adb/frida/uia/x64dbg/pe-sieve/craft-anything，以及 mcp:<name>（走 rehub_mcp）`);
   }
 }

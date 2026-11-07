@@ -19,7 +19,7 @@ re-hub/
 │  ├─ capabilities.mjs  # 能力注册表 + 后端回退（按 capability 选实现）
 │  ├─ tasks.mjs         # 任务状态（taskId/stepId/planVersion）+ 局部重规划
 │  ├─ verify.mjs        # 三层验证（执行 / 事实 / 交付）
-│  ├─ backends.mjs      # 真实执行适配器：rea / ghidra / jadx / apktool / adb / frida / uia / x64dbg / pe-sieve
+│  ├─ backends.mjs      # 真实执行适配器：rea / ghidra / jadx / apktool / adb / frida / uia / x64dbg / pe-sieve / craft-anything
 │  ├─ detect.mjs        # 环境侦察（可用性/版本/安装提示，30s 缓存）
 │  ├─ evidence.mjs      # 证据账本（JSONL）与 Markdown 报告
 │  ├─ cli.mjs           # 命令行版（调试/脚本用）
@@ -31,7 +31,7 @@ re-hub/
 ├─ install/register.mjs # 一键注册到 DSH（MCP + Skill），幂等
 ├─ tests/smoke.mjs      # 105 项冒烟测试（真实 MCP 客户端）
 ├─ vendor/              # 全部同类项目源码（25 个仓库，见 VENDOR.md）
-├─ tools/               # 下载的 JADX / apktool / x64dbg / pe-sieve
+├─ tools/               # 下载的 JADX / apktool / x64dbg / pe-sieve / craft-anything
 └─ state/               # 证据账本、Ghidra 工程、大输出落盘
 ```
 
@@ -89,7 +89,7 @@ node scripts/validate-patch.mjs %DSH_HOME%\cordis.patch.yml
 | `route` | **意图识别**：task(+target) → 场景/置信度/理由/**该读哪一章(chapter)**/缺失依赖/澄清问题；同时带对象分类与三条模式链路 |
 | `book` | **这本书**：不带参数返回目录；带 chapter（`04`/`04-web-js`/`web-js`）返回该章正文 |
 | `plan` | **任务图**：`{scenario,target}` 或 `{objectType,mode,target}`，返回 `taskId/planVersion` + 每步 `stepId/capability/副作用/可用性/回退/期望证据` + 停止条件；支持 `fromStep` 局部重规划 |
-| `exec` | 执行一步（rea/jadx/apktool/ghidra/adb/frida/uia/x64dbg/pe-sieve）；传 `taskId+stepId` 记录状态与 `recovery`，副作用步骤需 `confirm:true` |
+| `exec` | 执行一步（rea/jadx/apktool/ghidra/adb/frida/uia/x64dbg/pe-sieve/craft-anything）；传 `taskId+stepId` 记录状态与 `recovery`，副作用步骤需 `confirm:true` |
 | `mcp` | 子 MCP 多路复用（js-reverse-mcp、ghidra-mcp、ida-mcp…） |
 | `evidence` | 证据账本 + Claim：`append`（artifactRef/sha256）/`claim`（observed/inferred/unknown）/`list`/`report`（统一报告） |
 | `verify` | **三层验证**：execution / fact / delivery；`supported/contradicted/insufficient/inferred/unknown` |
@@ -127,6 +127,26 @@ Prompt：`reverse-engineering-router`（封面+目录索引全文）、`scenario
 **execution（工具是否成功）/ fact（结论是否有 observation 证据）/ delivery（交付物是否达标）** 三层。
 执行成功不等于事实成立。详见 [附录 E](skills/reverse-engineering-hub/chapters/E-task-verify.md)。
 
+### 3.3 内置引擎：REA + Craft Anything
+
+- **REA**：统一执行层（原生/.NET/Electron/Web/Android/固件/抓包/进程），re-hub 通过 `rea` 后端调用。
+- **Craft Anything**：纯 Rust 逆向引擎（321 tools，CLI + MCP；native/.NET/Java/Android/Apple/JS/Web/firmware/packets/db/game）。
+  - 默认 **clean-room**（不读目标内部）；**Deep 模式**才读代码/文件，仅用于自有或已授权目标。
+  - bootstrap 会下载 Windows/macOS portable 包，并**自动注册子 MCP**（`craft-anything-cli mcp --all-tools --deep`）。
+
+```powershell
+node scripts/bootstrap.mjs --only craft-anything --yes
+# CLI 后端：自检 / 工具目录 / 单个工具
+rehub_exec backend=craft-anything op=doctor
+rehub_exec backend=craft-anything op=commands
+rehub_exec backend=craft-anything op=tool args={tool:"core_target_triage",params:{path:"D:/x.exe"}}
+# 子 MCP：321 个工具（与 REA 的 mcp__rea__* 类似，通过 rehub_mcp 调用）
+rehub_mcp backend=craft-anything action=list
+rehub_mcp backend=craft-anything action=call tool=core_target_open args={path:"D:/x.exe"}
+```
+
+不想用 Deep 模式时，把 `config.json` 里该子 MCP 的 `args` 改成 `["mcp","--all-tools"]` 即可。
+
 ## 3. 官方 Skill：一本可查的书
 
 `skills/reverse-engineering-hub/` 是按「书」组织的 skill：
@@ -163,6 +183,7 @@ Prompt：`reverse-engineering-router`（封面+目录索引全文）、`scenario
 | `ghidra` | NationalSecurityAgency/ghidra | ~400MB | 原生深分析（需 JDK21） |
 | `x64dbg` | x64dbg/x64dbg | ~50MB | 动态调试（断点/单步/内存） |
 | `pe-sieve` | hasherezade/pe-sieve | ~1MB | 内存 dump / 注入检测 |
+| `craft-anything` | storytold/craft-anything | ~65MB | 纯 Rust 逆向引擎（321 tools，CLI+MCP；自动注册子 MCP） |
 
 两种用法：
 - **Agent 侧**：`rehub_install { only:["jadx","apktool"], dryRun:false }`（默认 dry-run，只报告计划）
@@ -186,7 +207,7 @@ Prompt：`reverse-engineering-router`（封面+目录索引全文）、`scenario
 | artifact-inventory | rea inspect/extract artifact | REA ✅ |
 | process-behavior | rea capture-process | Windows 受限 |
 | vuln-research | rea layout + ghidra functions | ✅ |
-| dynamic-analysis | x64dbg + frida + pe-sieve | x64dbg/pe-sieve 可 bootstrap；frida 需 pip；VMProtect 见第 14 章 |
+| dynamic-analysis | x64dbg + frida + pe-sieve + craft-anything | x64dbg/pe-sieve/craft-anything 可 bootstrap；frida 需 pip；VMProtect 见第 14 章 |
 | ui-reverse | UIA（控件树/截图）+ CEF CDP | UIA 内置；CEF 需调试端口 |
 | triage | 提问澄清 | — |
 

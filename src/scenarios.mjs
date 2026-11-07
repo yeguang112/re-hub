@@ -15,7 +15,7 @@ export const SCENARIOS = [
     phrases: ['原生二进制', 'native binary', '反编译', 'decompile', '伪代码', 'pseudocode', '汇编', 'assembly', '交叉引用', 'xref', '函数调用', 'call graph'],
     keywords: ['exe', 'dll', 'so', 'elf', 'macho', '二进制', '二进制文件', '反汇编', '逆向', '逆向分析', '函数', '符号', '导入表', '字符串', '补丁', 'patch', 'hook 点', 'cve', '漏洞', 'vuln'],
     requires: ['rea', 'ghidra'],
-    optional: ['ida', 'binja'],
+    optional: ['ida', 'binja', 'craft-anything'],
     chain: [
       { step: 1, backend: 'rea', op: 'analyze', args: { path: '{{target}}' }, why: '拿整体概览（格式/架构/符号/依赖），Ghidra 作为深分析 provider。' },
       { step: 2, backend: 'rea', op: 'decompile', args: { path: '{{target}}', procedure: '{{procedure}}' }, why: '按函数名/地址取伪代码与汇编；先看导出/符号再定点。' },
@@ -35,7 +35,7 @@ export const SCENARIOS = [
     phrases: ['安卓逆向', 'apk 逆向', 'apk逆向', '反编译 apk', '反编译apk', '脱壳', '加固', 'signature 校验', '签名校验', 'smali'],
     keywords: ['apk', 'android', '安卓', 'dex', 'smali', 'manifest', 'jadx', 'apktool', '资源', '加固', '壳', '签名', 'so 文件', 'so文件', 'applicationid'],
     requires: ['rea', 'jadx', 'apktool'],
-    optional: ['adb', 'frida'],
+    optional: ['adb', 'frida', 'craft-anything'],
     chain: [
       { step: 1, backend: 'rea', op: 'android-package', args: { path: '{{target}}' }, why: 'Manifest/包名/SDK/权限/组件概览（REA 需 REA_JADX_MCP_JAR；未配置时跳过，直接用 jadx/apktool 链）。' },
       { step: 2, backend: 'jadx', op: 'decompile', args: { path: '{{target}}', out: '{{workdir}}/jadx-out' }, why: '整包反编译成 Java 源码，供类与方法检索。' },
@@ -83,7 +83,7 @@ export const SCENARIOS = [
     phrases: ['前端逆向', 'js 逆向', 'js逆向', '签名算法', '加密参数', '反爬', '反爬虫', '混淆还原', 'webpack 打包', '登录参数', '请求参数加密', '接口加密', 'sign 参数', '参数怎么生成', '怎么生成的', '前端 js', '找算法', '登录的 sign'],
     keywords: ['js', 'javascript', 'sign', '签名', '加密', '解密', 'token', 'cookie', 'hook', '断点', 'debugger', 'xhr', 'fetch', 'websocket', '变量名还原', 'sojson', 'obfuscator', '极验', '滑块'],
     requires: ['chrome'],
-    optional: ['js-reverse-mcp', 'rea'],
+    optional: ['js-reverse-mcp', 'rea', 'craft-anything'],
     chain: [
       { step: 1, backend: 'js-reverse-mcp', op: 'list_tools', args: {}, why: '列出 JS 逆向子 MCP 的工具（脚本检索/断点/hook/网络）。' },
       { step: 2, backend: 'js-reverse-mcp', op: 'call', args: { tool: '{{tool}}', args: {} }, why: '按需调用：先搜索脚本，再设断点/hook。' },
@@ -161,7 +161,7 @@ export const SCENARIOS = [
     phrases: ['固件', 'firmware', '路由器', '提取固件', 'unblob', 'binwalk', '文件系统提取'],
     keywords: ['固件', 'firmware', 'rom', 'squashfs', 'uboot', 'iot', '嵌入式', '路由器', '摄像头', '提取'],
     requires: ['rea'],
-    optional: ['binwalk', 'unblob'],
+    optional: ['binwalk', 'unblob', 'craft-anything'],
     chain: [
       { step: 1, backend: 'rea', op: 'raw', args: { args: ['inspect-firmware-regions', '{{target}}', '--format', 'json'] }, why: 'Binwalk 识别区域与置信度（Linux 需要 binwalk）。' },
       { step: 2, backend: 'rea', op: 'firmware', args: { path: '{{target}}', out: '{{workdir}}/firmware-out' }, why: 'Unblob 提取文件系统与子文件，返回摘要。' },
@@ -252,7 +252,7 @@ export const SCENARIOS = [
     phrases: ['动态分析', '动态调试', '下断点', '断点跟踪', '运行时追踪', '内存 dump', '内存dump', '跑起来看', '动态跟踪', 'hook 函数', '反调试', '脱壳', '虚拟化', 'vmprotect'],
     keywords: ['动态', '调试', '断点', '单步', 'trace', '追踪', 'hook', 'frida', 'x64dbg', 'windbg', 'ttd', 'pe-sieve', 'dump', '内存', '运行时', '反调试', '壳', '加壳', 'vmp', '虚拟化'],
     requires: ['x64dbg', 'frida'],
-    optional: ['pe-sieve', 'rea'],
+    optional: ['pe-sieve', 'rea', 'craft-anything'],
     chain: [
       { step: 1, backend: 'x64dbg', op: 'info', args: {}, why: '确认调试器可用（动态分析的控制台）。' },
       { step: 2, backend: 'x64dbg', op: 'launch', args: { path: '{{target}}' }, why: '启动目标；断点/单步在调试器里做（或接 x64dbg-mcp-server 让 AI 控制）。' },
@@ -265,6 +265,7 @@ export const SCENARIOS = [
       x64dbg: 'node scripts/bootstrap.mjs --only x64dbg --yes；完整 AI 控制可再接 x64dbg-mcp-server（MCP）。',
       frida: 'pip install frida-tools（设备端需 frida-server）。',
       'pe-sieve': 'node scripts/bootstrap.mjs --only pe-sieve --yes。',
+      'craft-anything': 'node scripts/bootstrap.mjs --only craft-anything --yes（自动注册子 MCP；clean-room 默认，Deep 模式才读内部）。',
     },
   },
   {
@@ -277,7 +278,7 @@ export const SCENARIOS = [
     phrases: ['ui逆向', '界面逆向', '界面还原', '控件树', 'ui 自动化', '界面结构', '复刻界面', '重建界面', 'ui 复现', '界面复刻', '控件分析', '对话框结构', '菜单结构', '界面分析'],
     keywords: ['ui', '界面', '控件', '布局', '对话框', '菜单', '工具栏', '状态栏', 'uia', 'accessibility', '控件树', '截图', '原型', '复刻', '还原', '主题', '样式'],
     requires: ['uia'],
-    optional: ['chrome', 'rea'],
+    optional: ['chrome', 'rea', 'craft-anything'],
     chain: [
       { step: 1, backend: 'uia', op: 'tree', args: { process: '{{process}}' }, why: '导出控件树（名称/类型/AutomationId/类名/位置）。' },
       { step: 2, backend: 'uia', op: 'screenshot', args: { process: '{{process}}', out: '{{workdir}}/ui.png' }, why: '截取窗口，作为布局/视觉参考。' },

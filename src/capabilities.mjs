@@ -131,6 +131,18 @@ export const CAPABILITIES = {
     label: 'REA 能力自检', modes: ['static', 'dynamic', 'ui'], sideEffects: false,
     candidates: [{ backend: 'rea', op: 'capabilities' }, { backend: 'rea', op: 'doctor' }],
   },
+  craft_anything_probe: {
+    label: 'Craft Anything 引擎自检', modes: ['static', 'dynamic', 'ui'], sideEffects: false,
+    candidates: [{ backend: 'craft-anything', op: 'doctor' }],
+  },
+  craft_anything_tools: {
+    label: 'Craft Anything 工具目录', modes: ['static', 'dynamic', 'ui'], sideEffects: false,
+    candidates: [{ backend: 'craft-anything', op: 'commands' }],
+  },
+  craft_anything_tool: {
+    label: 'Craft Anything 单工具', modes: ['static', 'dynamic', 'ui'], sideEffects: false,
+    candidates: [{ backend: 'craft-anything', op: 'tool' }, { backend: 'craft-anything', op: 'raw' }],
+  },
 };
 
 const REVERSE = new Map();

@@ -32,6 +32,7 @@
 
 | 工具 | 作用 | 注意 |
 |---|---|---|
+| Craft Anything | 纯 Rust 逆向引擎（321 tools；Deep 模式可读代码/文件，clean-room 默认不读） | `bootstrap --only craft-anything` 自动注册子 MCP；仅用于授权目标 |
 | ScyllaHide / HyperHide | 反反调试（x64dbg 插件） | 与目标版本适配；HyperHide 需 VT-x |
 | TTD + ttddbg | 录执行流，可回溯 | 需要 WinDbg 的 TTD 组件 |
 | ret-sync | 调试器 ↔ IDA/Ghidra/BN 同步 | 定位跟踪点方便 |
@@ -49,6 +50,7 @@
 
 ## 常见坑
 
+- **Craft Anything 默认 clean-room**：它不会读目标内部；需要读代码/文件时用 Deep 模式（子 MCP 的 `--deep`），且仅限授权目标。
 - **附加即崩**：先看 `IsDebuggerPresent`/`NtQueryInformationProcess`/`/proc/self/maps`/时序检测；ScyllaHide 先开。
 - **VMProtect 不是普通加壳**：静态脱壳工具成功率取决于版本；不要假设 VMPStatic 一定有效，先验证。
 - **dump 不完整**：分模块 dump、修复 IAT/重定位后再分析。

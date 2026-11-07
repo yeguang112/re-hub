@@ -11,7 +11,7 @@ metadata:
 
 **名称**：逆向工程操作手册 · RE Hub 版
 **版本**：2.2（2026-11-07）
-**配套**：MCP 网关 `rehub`（`mcp__rehub__detect / classify / route / plan / exec / mcp / evidence / verify / book / install`）+ 本机 REA 6.4.0 / Ghidra 12.1.4 / JADX 1.5.6 / apktool 3.0.3；动态/UI 后端：x64dbg / Frida / pe-sieve / UIA（控件树）。
+**配套**：MCP 网关 `rehub`（`mcp__rehub__detect / classify / route / plan / exec / mcp / evidence / verify / book / install`）+ 本机 REA 6.4.0 / Ghidra 12.1.4 / JADX 1.5.6 / apktool 3.0.3；动态/UI 后端：x64dbg / Frida / pe-sieve / UIA；内置引擎：REA、Craft Anything（321 tools，CLI+MCP）。
 
 ## 简介（这本书解决什么）
 

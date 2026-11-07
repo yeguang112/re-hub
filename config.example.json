@@ -9,6 +9,7 @@
   "reaJadxMcpJar": "D:/work/re-hub/tools/jadx-headless-mcp-0.7.1-clean.jar",
   "x64dbgExe": "",
   "peSieveExe": "",
+  "craftAnythingExe": "",
   "adbExe": "",
   "fridaExe": "",
   "vendorDir": "D:/work/re-hub/vendor",
@@ -17,5 +18,12 @@
   "toolsDir": "D:/work/re-hub/tools",
   "defaultTimeoutMs": 120000,
   "maxOutputBytes": 4000000,
-  "mcpBackends": {}
+  "mcpBackends": {
+    "craft-anything": {
+      "command": "D:/path/to/craft-anything-cli.exe",
+      "args": ["mcp", "--all-tools", "--deep"],
+      "description": "Craft Anything：纯 Rust 逆向引擎（321 tools，CLI+MCP，Deep 模式；clean-room 去掉 --deep）",
+      "disabled": true
+    }
+  }
 }

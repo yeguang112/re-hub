@@ -1,6 +1,6 @@
 {
   "name": "rehub",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "private": true,
   "type": "module",
   "description": "RE Hub — one MCP gateway + official skill that routes reverse-engineering tasks to the right chain (native, Android, Web/JS, Electron, .NET, firmware, capture, dynamic, UI).",

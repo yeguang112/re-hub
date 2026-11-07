@@ -244,6 +244,26 @@ export async function detectEnvironment(cfg = loadConfig(), { refresh = false } 
     };
   }
 
+  // --- Craft Anything（纯 Rust 逆向引擎：CLI + MCP） ---
+  {
+    let exe = cfg.craftAnythingExe && exists(cfg.craftAnythingExe) ? cfg.craftAnythingExe : null;
+    if (!exe) {
+      exe = findFileRecursive(path.join(cfg.toolsDir || path.join(PROJECT_ROOT, 'tools'), 'craft-anything'), 'craft-anything-cli.exe');
+    }
+    if (!exe) {
+      const onPath = await which('craft-anything-cli');
+      if (onPath) exe = onPath;
+    }
+    backends['craft-anything'] = {
+      available: !!exe,
+      version: exe ? await versionOf(exe, ['--version']) : null,
+      path: exe,
+      role: '纯 Rust 逆向引擎（321 tools，CLI+MCP；native/.NET/Java/Android/Apple/JS/Web/firmware/packets/db/game）',
+      install: 'node scripts/bootstrap.mjs --only craft-anything --yes（GitHub release portable zip；自动注册子 MCP），或把 craft-anything-cli.exe 路径写入 config.craftAnythingExe。',
+      note: 'clean-room 默认（不读目标内部）；Deep 模式才读代码/文件。子 MCP：craft-anything-cli mcp --all-tools --deep',
+    };
+  }
+
   // --- UIA（UI 逆向：控件树/截图） ---
   {
     const script = path.join(PROJECT_ROOT, 'scripts', 'uia', 'uia.ps1');
@@ -298,15 +318,20 @@ export async function detectEnvironment(cfg = loadConfig(), { refresh = false } 
   const mcp = {};
   for (const [name, spec] of Object.entries(cfg.mcpBackends || {})) {
     if (spec.disabled) { mcp[name] = { available: false, disabled: true, description: spec.description }; continue; }
-    const entry = spec.args?.[0];
-    const entryOk = entry ? exists(entry) : true;
-    const cmdOk = spec.command ? !!(await which(spec.command)) : false;
+    // args[0] is an entry script/path for node-based servers, but a plain
+    // subcommand (e.g. "mcp") for self-contained binaries.
+    const firstArg = spec.args?.[0];
+    const firstArgIsPath = typeof firstArg === 'string' && (path.isAbsolute(firstArg) || /[\\/]/.test(firstArg) || /\.(?:js|mjs|cjs|exe|bat|cmd)$/i.test(firstArg));
+    const entryOk = firstArgIsPath ? exists(firstArg) : true;
+    const cmdOk = spec.command
+      ? (path.isAbsolute(spec.command) ? exists(spec.command) : !!(await which(spec.command)))
+      : false;
     mcp[name] = {
       available: !!(entryOk && cmdOk),
       command: spec.command,
-      entry,
+      entry: firstArgIsPath ? firstArg : null,
       description: spec.description,
-      install: entryOk ? null : `先按 vendor 里的说明安装该子 MCP（入口 ${entry}）。`,
+      install: entryOk && cmdOk ? null : (spec.command && !cmdOk ? `命令不可用：${spec.command}` : `入口不存在：${firstArg}`),
     };
   }
 

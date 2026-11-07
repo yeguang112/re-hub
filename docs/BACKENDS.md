@@ -12,6 +12,7 @@
 | `apktool` | ✅ 可用 | 3.0.3，`tools/apktool_3.0.3.jar` + JDK21 | Android 资源/Manifest |
 | `chrome` | ✅ 可用 | `C:/Program Files/Google/Chrome/Application/chrome.exe` | Web/JS、页面观察 |
 | `dotnet` | ✅ 可用 | `dotnet` | .NET 辅助 |
+| `craft-anything` | ✅ 可用 | 0.5.0，`tools/craft-anything/craft-anything-cli.exe` | 纯 Rust 引擎（321 tools；CLI + 子 MCP；Deep 模式） |
 | `jadx-headless-mcp` (REA 桥) | ✅ 已配置 | `tools/jadx-headless-mcp-0.7.1-clean.jar` | REA 的 `inspect-android-*` |
 | `adb` | ❌ 缺失 | — | Android 动态链前置 |
 | `frida` | ❌ 缺失 | — | 动态插桩/脱壳 |
@@ -32,6 +33,8 @@ node scripts/bootstrap.mjs --all --yes                 # 全部（含 REA / Ghid
 
 MCP 侧等价：`rehub_install { only:["jadx"], dryRun:false }`（默认 dry-run 只规划）。
 
+Craft Anything 安装后会自动注册子 MCP（`craft-anything-cli mcp --all-tools --deep`），可经 `rehub_mcp backend=craft-anything` 调用 321 个工具；clean-room 模式去掉 `--deep` 即可。
+
 | id | 来源 | 约大小 | 落地位置 |
 |---|---|---|---|
 | `jadx` | skylot/jadx | 70MB | `tools/jadx/`（config.jadxHome） |
@@ -39,6 +42,7 @@ MCP 侧等价：`rehub_install { only:["jadx"], dryRun:false }`（默认 dry-run
 | `jadx-headless-mcp` | 1013503897/jadx-headless-mcp v0.7.1 | 41MB | `tools/jadx-headless-mcp-0.7.1-clean.jar`（自动重打包去重） |
 | `rea` | morluto/rea | clone + npm | `tools/rea/`（config.reaScript） |
 | `ghidra` | NationalSecurityAgency/ghidra | ~400MB | `tools/ghidra/`（config.ghidraDir，需 JDK21） |
+| `craft-anything` | storytold/craft-anything | ~65MB | `tools/craft-anything/`（config.craftAnythingExe；自动注册子 MCP） |
 
 - 已存在或 `config.json` 已指向可用副本 → 自动跳过，不重复下载。
 - GitHub 提供 digest 时校验 sha256（实测 apktool 通过）。

@@ -17,6 +17,7 @@
 | frida | ❌ | 动态插桩（pip install frida-tools） |
 | x64dbg | ✅（bootstrap 安装） | 动态调试（断点/单步/内存）；Medium 会话只能调自己启动的进程 |
 | pe-sieve | ✅（bootstrap 安装，需管理员） | 内存 dump / 注入检测；未提权会 Access Denied（`needs-elevation`） |
+| craft-anything 0.5.0 | ✅（bootstrap 安装） | 纯 Rust 逆向引擎（321 tools）；CLI `rehub_exec backend=craft-anything`；子 MCP `rehub_mcp backend=craft-anything` |
 | uia | ✅ 内置 | UI 控件树/截图（scripts/uia/uia.ps1） |
 | ida / binja | ❌ | 商业授权 |
 | js-reverse-mcp | ⚠️ 已克隆未构建 | Web 断点/Hook 增强 |
@@ -26,6 +27,7 @@
 ```powershell
 node scripts/bootstrap.mjs --check                     # 看缺什么
 node scripts/bootstrap.mjs --only jadx,apktool --yes   # 只装需要的
+node scripts/bootstrap.mjs --only craft-anything --yes # 纯 Rust 引擎（321 tools），自动注册子 MCP
 node scripts/bootstrap.mjs --all --yes                 # 全部（含 REA / Ghidra，较大）
 ```
 

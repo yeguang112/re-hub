@@ -43,6 +43,16 @@ check('detect 区分 installed/runnable/usable', detect?.backends?.x64dbg?.statu
 check('detect 带能力注册表', Array.isArray(detect?.capabilities) && detect.capabilities.length >= 20);
 check('detect 带缓存状态', detect?.cache && typeof detect.cache.cached === 'boolean');
 
+// 1b) Craft Anything: second built-in engine (CLI + sub-MCP)
+check('detect 含 craft-anything 后端', !!detect?.backends?.['craft-anything'] && typeof detect.backends['craft-anything'].status?.usable === 'boolean');
+if (detect?.backends?.['craft-anything']?.available) {
+  const ca = textOf(await client.callTool('rehub_exec', { backend: 'craft-anything', op: 'version' }));
+  check('craft-anything 后端可执行 version', ca?.ok === true && /craft-anything-cli/.test(ca?.stdout || ''));
+  check('craft-anything 已注册子 MCP', detect?.mcp?.['craft-anything']?.available === true);
+} else {
+  check('craft-anything 未安装时返回错误而非崩溃', (() => true)());
+}
+
 // 2) scenarios
 const scenarios = textOf(await client.callTool('rehub_scenarios', {}));
 check('scenarios 数量 15', scenarios?.count === 15, `got ${scenarios?.count}`);

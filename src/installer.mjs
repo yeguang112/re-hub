@@ -109,11 +109,44 @@ export const TOOLS = {
     check: (root) => firstExisting([path.join(root, 'tools/pe-sieve/pe-sieve.exe'), path.join(root, 'tools/pe-sieve.exe')]),
     note: '进程内存扫描/dump（脱壳、内存取证）',
   },
+  'craft-anything': {
+    repo: 'storytold/craft-anything',
+    // Windows portable zip / macOS CLI zip; other platforms install manually.
+    asset: (name) => {
+      if (process.platform === 'win32') {
+        if (process.arch === 'arm64') return /windows-arm64-portable\.zip$/i.test(name);
+        if (process.arch === 'ia32') return /windows-x86-portable\.zip$/i.test(name);
+        return /windows-x64-portable\.zip$/i.test(name);
+      }
+      if (process.platform === 'darwin') return /craft-anything-cli-.*macos-universal\.zip$/i.test(name);
+      return false;
+    },
+    kind: 'zip',
+    dest: 'craft-anything',
+    config: { craftAnythingExe: 'craft-anything-cli.exe' },
+    configFromFile: 'craft-anything-cli.exe',
+    afterConfig: (entries, cfg) => ({
+      mcpBackends: {
+        ...(cfg.mcpBackends || {}),
+        'craft-anything': {
+          command: String(entries.craftAnythingExe || '').replace(/\\/g, '/'),
+          // --all-tools exposes all 321 tools (default is Essentials + enabled toolsets);
+          // --deep lets the engine read the target's code/files (authorized targets only).
+          args: ['mcp', '--all-tools', '--deep'],
+          description: 'Craft Anything：纯 Rust 逆向引擎（321 tools，CLI+MCP，Deep 模式）',
+        },
+      },
+    }),
+    check: (root) => findFileRecursive(path.join(root, 'tools/craft-anything'), 'craft-anything-cli.exe'),
+    note: '纯 Rust 逆向引擎（302 tools，CLI+MCP；native/.NET/Java/Android/Apple/JS/Web/firmware/packets/db/game）',
+  },
 };
 
 const ALIASES = {
   'jadx-headless': 'jadx-headless-mcp',
   bridgemcp: 'jadx-headless-mcp',
+  craft: 'craft-anything',
+  'craft-anything-cli': 'craft-anything',
 };
 
 /* ------------------------------------------------------------------ */
@@ -191,9 +224,12 @@ async function ghJson(apiPath, log) {
 async function resolveAsset(spec, log) {
   const relPath = spec.tag ? `/repos/${spec.repo}/releases/tags/${spec.tag}` : `/repos/${spec.repo}/releases/latest`;
   const release = await ghJson(relPath, log);
-  const asset = (release.assets || []).find((a) => spec.asset.test(a.name));
+  const match = typeof spec.asset === 'function'
+    ? (name) => spec.asset(name)
+    : (name) => spec.asset.test(name);
+  const asset = (release.assets || []).find((a) => match(a.name));
   if (!asset) {
-    throw new Error(`no asset matching ${spec.asset} in ${spec.repo}@${release.tag_name}`);
+    throw new Error(`no asset for ${spec.repo}@${release.tag_name} on ${process.platform}/${process.arch}`);
   }
   return {
     version: release.tag_name,
@@ -316,9 +352,9 @@ async function repackJar(jarFile, destJar, cfg, log) {
 function updateConfig(configPath, entries, log) {
   let cfg = {};
   try { cfg = JSON.parse(fs.readFileSync(configPath, 'utf8')); } catch { /* new file */ }
-  for (const [key, abs] of Object.entries(entries)) {
-    cfg[key] = abs.replace(/\\/g, '/');
-    log(`        config.${key} = ${cfg[key]}`);
+  for (const [key, val] of Object.entries(entries)) {
+    cfg[key] = typeof val === 'string' ? val.replace(/\\/g, '/') : val;
+    log(`        config.${key} = ${typeof val === 'string' ? cfg[key] : JSON.stringify(val)}`);
   }
   fs.mkdirSync(path.dirname(configPath), { recursive: true });
   fs.writeFileSync(configPath, JSON.stringify(cfg, null, 2) + '\n', 'utf8');
@@ -347,11 +383,17 @@ async function installOne(id, ctx) {
     logLine(log, 'SKIP', `${id} 已存在：${existing}`);
     // 已装好但 config 没指路时补写，避免“文件在、detect 说没有”
     const key = Object.keys(spec.config || {})[0];
+    const entries = key ? { [key]: existing } : {};
     if (key && (!cfg[key] || !fs.existsSync(cfg[key]))) {
       cfg[key] = existing;
       try {
         fs.writeFileSync(ctx.configPath || path.join(root, 'config.json'), JSON.stringify(cfg, null, 2) + '\n');
         logLine(log, 'CFG', `${id}: config.${key} = ${existing}`);
+      } catch { /* ignore */ }
+    }
+    if (doConfig && typeof spec.afterConfig === 'function') {
+      try {
+        updateConfig(ctx.configPath || path.join(root, 'config.json'), spec.afterConfig(entries, cfg), log);
       } catch { /* ignore */ }
     }
     return result;
@@ -434,7 +476,8 @@ async function installOne(id, ctx) {
 
   if (doConfig) {
     const configPath = ctx.configPath;
-    updateConfig(configPath, entries, log);
+    const extra = typeof spec.afterConfig === 'function' ? spec.afterConfig(entries, cfg) : null;
+    updateConfig(configPath, { ...entries, ...(extra || {}) }, log);
   }
   result.ok = true;
   result.path = spec.check(root) || Object.values(entries)[0];
