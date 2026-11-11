@@ -4,6 +4,7 @@
 import { McpClient } from '../src/lib/mcp.mjs';
 import { resolveStep } from '../src/capabilities.mjs';
 import { checkTaskCanExecute } from '../src/tasks.mjs';
+import { searchTools, compactIndex, buildCapabilityArgv } from '../src/craft-caps.mjs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -45,10 +46,33 @@ check('detect 带缓存状态', detect?.cache && typeof detect.cache.cached === 
 
 // 1b) Craft Anything: second built-in engine (CLI + sub-MCP)
 check('detect 含 craft-anything 后端', !!detect?.backends?.['craft-anything'] && typeof detect.backends['craft-anything'].status?.usable === 'boolean');
+
+// 1b2) Craft Anything compact call layer (pure): bounded search / index / capability argv
+const fakeCatalog = [
+  { tool: 'native_function_pseudocode', command: 'native-function-pseudocode', title: 'Decompile', toolset: 'native', needs_target: true, summary: 'Structured pseudo-C' },
+  { tool: 'native_functions_list', command: 'native-functions-list', title: 'List functions', toolset: 'native', needs_target: true, summary: 'Every function' },
+  { tool: 'web_page_show', command: 'web-page-show', title: 'Inspect a web page', toolset: 'browser', needs_target: false, summary: 'Passively observe' },
+];
+const found = searchTools(fakeCatalog, { query: 'function', limit: 1 });
+check('craft-caps: 检索有界（limit 生效）', found.matched === 2 && found.returned === 1 && found.items[0].tool === 'native_function_pseudocode');
+const fakeIndex = compactIndex(fakeCatalog);
+check('craft-caps: 目录索引只给计数/提示', fakeIndex.total === 3 && fakeIndex.toolsets.find((t) => t.name === 'native')?.count === 2 && Array.isArray(fakeIndex.capabilities));
+const capArgv = buildCapabilityArgv('function_pseudocode', { path: 'C:/x.exe', function: '0x401000' });
+check('craft-caps: 能力→argv 映射（位置参数/标志）', capArgv.argv.join(' ') === 'native-function-pseudocode C:/x.exe --function 0x401000');
+check('craft-caps: 未知参数被拒绝', (() => { try { buildCapabilityArgv('triage', { path: 'x', bogus: 1 }); return false; } catch (e) { return e.code === 'unknown-param'; } })());
+
 if (detect?.backends?.['craft-anything']?.available) {
   const ca = textOf(await client.callTool('rehub_exec', { backend: 'craft-anything', op: 'version' }));
   check('craft-anything 后端可执行 version', ca?.ok === true && /craft-anything-cli/.test(ca?.stdout || ''));
   check('craft-anything 已注册子 MCP', detect?.mcp?.['craft-anything']?.available === true);
+
+  // compact call layer over the real 321-tool catalog: bounded, never a full dump
+  const caTools = textOf(await client.callTool('rehub_exec', { backend: 'craft-anything', op: 'tools', args: { query: 'pseudocode', limit: 3 } }));
+  check('craft-anything op=tools 返回有界检索结果', caTools?.ok === true && (caTools?.data?.matched || 0) >= 1 && (caTools?.data?.returned || 0) <= 3 && JSON.stringify(caTools).length < 4000, `len=${JSON.stringify(caTools).length}`);
+  const caCommands = textOf(await client.callTool('rehub_exec', { backend: 'craft-anything', op: 'commands' }));
+  check('craft-anything op=commands 只回紧凑索引', caCommands?.ok === true && caCommands?.data?.total >= 300 && JSON.stringify(caCommands).length < 4000, `len=${JSON.stringify(caCommands).length}`);
+  const caCap = textOf(await client.callTool('rehub_exec', { backend: 'craft-anything', op: 'capability', args: { name: 'triage', path: 'C:/Windows/System32/notepad.exe', deep: true } }));
+  check('craft-anything op=capability 能执行并回显能力名', caCap?.capability === 'triage' && caCap?.tool === 'core-target-triage' && caCap?.ok === true, `ok=${caCap?.ok}`);
 } else {
   check('craft-anything 未安装时返回错误而非崩溃', (() => true)());
 }

@@ -136,14 +136,21 @@ Prompt：`reverse-engineering-router`（封面+目录索引全文）、`scenario
 
 ```powershell
 node scripts/bootstrap.mjs --only craft-anything --yes
-# CLI 后端：自检 / 工具目录 / 单个工具
-rehub_exec backend=craft-anything op=doctor
-rehub_exec backend=craft-anything op=commands
+# 推荐：三个紧凑入口（全文目录 ~129 KB，别整表打印）
+rehub_exec backend=craft-anything op=capability args={name:"triage",path:"D:/x.exe"}   # 认目标（需要读内部时加 deep:true）
+rehub_exec backend=craft-anything op=tools args={query:"pseudocode",limit:5}          # 有界检索（~1 KB）
+rehub_exec backend=craft-anything op=commands                                        # 只回 toolset 计数+能力名（~1 KB）
+# 具体工具 / 自检
 rehub_exec backend=craft-anything op=tool args={tool:"core_target_triage",params:{path:"D:/x.exe"}}
-# 子 MCP：321 个工具（与 REA 的 mcp__rea__* 类似，通过 rehub_mcp 调用）
+rehub_exec backend=craft-anything op=doctor
+# 子 MCP：321 个工具（通过 rehub_mcp 调用）
 rehub_mcp backend=craft-anything action=list
 rehub_mcp backend=craft-anything action=call tool=core_target_open args={path:"D:/x.exe"}
 ```
+
+> 能力名：`triage` / `open_target` / `functions_list` / `function_pseudocode` / `function_disassemble` / `strings_list` / `imports_list` / `web_page_inspect` / `android_package` / `unpack_packed`。
+> 读目标内部（伪代码/字符串/导入/解包）要 `deep:true`；不加会返回 `feature_missing`（clean-room 不误读）。`op=commands raw:true` 才回完整 321 条（仅程序用）。
+
 
 不想用 Deep 模式时，把 `config.json` 里该子 MCP 的 `args` 改成 `["mcp","--all-tools"]` 即可。
 

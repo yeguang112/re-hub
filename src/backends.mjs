@@ -6,6 +6,7 @@ import crypto from 'node:crypto';
 import { spawn } from 'node:child_process';
 import { run, clip } from './lib/exec.mjs';
 import { loadConfig, PROJECT_ROOT } from './detect.mjs';
+import { buildCapabilityArgv, searchTools, compactIndex, CRAFT_CAPABILITY_IDS } from './craft-caps.mjs';
 
 const isWin = process.platform === 'win32';
 
@@ -446,6 +447,30 @@ export async function execPeSieve(args = {}, cfg = loadConfig()) {
 /* Craft Anything (pure-Rust engine: CLI + MCP)                        */
 /* ------------------------------------------------------------------ */
 
+// Cache the 321-tool catalog per executable (10 min): `commands` is ~129 KB,
+// so it is only ever loaded to answer a bounded search — never echoed whole.
+let _caCatalog = null;
+
+async function loadCraftCatalog(exe, cfg) {
+  const now = Date.now();
+  if (_caCatalog && _caCatalog.exe === exe && now - _caCatalog.at < 10 * 60_000) return _caCatalog.list;
+  const r = await run(exe, ['commands', '--format', 'json'], { timeoutMs: 60_000, maxBytes: cfg.maxOutputBytes });
+  const list = parseJsonMaybe(r.stdout);
+  if (!Array.isArray(list)) {
+    throw new Error(`craft-anything commands 输出无法解析（exit=${r.code}）：${clip(r.stderr || r.stdout, 400)}`);
+  }
+  _caCatalog = { at: now, exe, list };
+  return list;
+}
+
+/** Static envelope for compact ops that don't spawn the engine. */
+function craftStatic(backend, op, argv, extra = {}) {
+  return {
+    backend, op, ok: true, exitCode: 0, timedOut: false, truncated: false, ms: 0,
+    argv, ...extra,
+  };
+}
+
 export async function execCraftAnything(args = {}, cfg = loadConfig()) {
   const exe = (cfg.craftAnythingExe && fs.existsSync(cfg.craftAnythingExe))
     ? cfg.craftAnythingExe
@@ -464,10 +489,45 @@ export async function execCraftAnything(args = {}, cfg = loadConfig()) {
     else if (Array.isArray(v)) for (const x of v) flags.push(flag, String(x));
     else flags.push(flag, String(v));
   }
+
+  // Compact ops: bounded search / curated capability / index — no full dumps.
+  if (op === 'tools') {
+    const catalog = await loadCraftCatalog(exe, cfg);
+    const found = searchTools(catalog, args);
+    return craftStatic('craft-anything', op, ['commands', '--format', 'json'], {
+      data: { ...found, total: catalog.length },
+      note: '用 op=capability name=<能力> 直接调（见 data 里的 capability 列表在 op=commands），或 op=tool tool=<tool> params={...}',
+    });
+  }
+  if (op === 'capability') {
+    const capId = args.name || args.capability;
+    const built = buildCapabilityArgv(capId, args);
+    const r = await run(exe, built.argv, { timeoutMs: args.timeoutMs || 300000, maxBytes: cfg.maxOutputBytes });
+    const data = parseJsonMaybe(r.stdout);
+    const note = data?.error?.details?.reason === 'clean_room'
+      ? '该能力需要读目标内部：重试时加 args.deep=true（仅限授权目标）'
+      : undefined;
+    return normalize('craft-anything', op, r, {
+      argv: built.argv, capability: built.capability, tool: built.tool, capabilityLabel: built.label, data, note,
+    });
+  }
+  if (op === 'commands') {
+    const catalog = await loadCraftCatalog(exe, cfg);
+    if (args.raw === true) {
+      return craftStatic('craft-anything', op, ['commands'], {
+        data: catalog, count: catalog.length,
+        note: 'raw 全量清单（~129 KB），仅供程序处理；模型侧请用 op=tools / op=capability',
+      });
+    }
+    return craftStatic('craft-anything', op, ['commands'], {
+      data: compactIndex(catalog),
+      note: '紧凑索引；完整清单请传 raw:true（不建议）',
+    });
+  }
+
   let argv;
   if (op === 'version') argv = ['--version'];
   else if (op === 'doctor') argv = ['doctor'];
-  else if (op === 'commands') argv = ['commands'];
   else if (op === 'tool') {
     if (!args.tool) throw new Error('tool 需要 args.tool（工具 id，如 native_function_pseudocode 或 native-function-pseudocode）');
     argv = [String(args.tool).replace(/_/g, '-'), ...(args.args || []), ...flags];
@@ -477,7 +537,7 @@ export async function execCraftAnything(args = {}, cfg = loadConfig()) {
   } else if (op === 'mcp') {
     throw new Error('craft-anything mcp 是常驻 MCP server；请在 config.mcpBackends 注册后用 rehub_mcp backend=craft-anything 调用');
   } else {
-    throw new Error(`craft-anything 不支持 op: ${op}（version/doctor/commands/tool/raw）`);
+    throw new Error(`craft-anything 不支持 op: ${op}（version/doctor/capability/tools/commands/tool/raw）`);
   }
   const r = await run(exe, argv, { timeoutMs: args.timeoutMs || 300000, maxBytes: cfg.maxOutputBytes });
   const data = parseJsonMaybe(r.stdout);

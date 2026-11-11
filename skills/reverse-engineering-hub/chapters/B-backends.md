@@ -71,3 +71,25 @@ Agent 侧等价：`rehub_install { only:["jadx"], dryRun:false }`（默认 dry-r
 | 固件 | rea 区域识别 | WSL 上 binwalk/unblob |
 | 抓包 | rea HAR | pcap 需 tshark |
 | 动态 | frida + adb | — |
+
+## B.6 Craft Anything：紧凑调用（禁止整表）
+
+321 个工具的完整目录 ~129 KB（≈30k tokens），**永远不要 `op=commands` 打印全表**。固定套路：
+
+```
+rehub_exec backend=craft-anything op=capability name=triage args={path:"<目标>"}     # 先认目标（~1 KB）
+rehub_exec backend=craft-anything op=tools query="pseudocode" limit=5               # 再按词找工具（~0.8 KB）
+rehub_exec backend=craft-anything op=capability name=function_pseudocode args={path,function}  # 直接调能力
+```
+
+| 能力名 | 作用 |
+|---|---|
+| `triage` | 目标识别（格式/架构/语言/下一步工具） |
+| `open_target` | 设为活动 target |
+| `functions_list` / `function_pseudocode` / `function_disassemble` | 函数清单 / 伪代码 / 汇编 |
+| `strings_list` / `imports_list` | 字符串 / 导入符号 |
+| `web_page_inspect` | CDP 被动观察网页 |
+| `android_package` | APK Manifest/签名/DEX 概览 |
+| `unpack_packed` | 解出内嵌打包文件 |
+
+规则：读内部要 `deep:true`（否则 `feature_missing`，clean-room 不误读）；未知参数会被拒绝；`op=commands` 只回计数索引，全表仅在 `raw:true`（程序用）。

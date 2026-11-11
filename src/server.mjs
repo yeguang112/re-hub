@@ -388,7 +388,7 @@ const tools = [
   {
     name: 'rehub_exec',
     description:
-      '执行一步逆向操作（原子步骤）。backend=rea|jadx|apktool|ghidra|adb|frida|uia|x64dbg|pe-sieve|craft-anything，op 见各后端（craft-anything 支持 version/doctor/commands/tool/raw）。传 taskId+stepId 时记录步骤状态（pending/running/succeeded/failed/blocked/skipped）、失败恢复类别与任务预算；有副作用的步骤（launch/attach/dump/install/extract）需要 confirm:true。返回结构化 data + 输出裁剪 + recovery。',
+      '执行一步逆向操作（原子步骤）。backend=rea|jadx|apktool|ghidra|adb|frida|uia|x64dbg|pe-sieve|craft-anything，op 见各后端（craft-anything 支持 version/doctor/capability/tools/commands/tool/raw；capability 是推荐入口，commands 只回紧凑索引、不打印全表）。传 taskId+stepId 时记录步骤状态（pending/running/succeeded/failed/blocked/skipped）、失败恢复类别与任务预算；有副作用的步骤（launch/attach/dump/install/extract）需要 confirm:true。返回结构化 data + 输出裁剪 + recovery。',
     inputSchema: {
       type: 'object',
       properties: {

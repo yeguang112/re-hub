@@ -143,6 +143,14 @@ export const CAPABILITIES = {
     label: 'Craft Anything 单工具', modes: ['static', 'dynamic', 'ui'], sideEffects: false,
     candidates: [{ backend: 'craft-anything', op: 'tool' }, { backend: 'craft-anything', op: 'raw' }],
   },
+  craft_anything_capability: {
+    label: 'Craft Anything 能力封装（推荐的紧凑入口）', modes: ['static', 'dynamic', 'ui'], sideEffects: false,
+    candidates: [{ backend: 'craft-anything', op: 'capability' }],
+  },
+  craft_anything_tools_search: {
+    label: 'Craft Anything 工具检索（有界）', modes: ['static', 'dynamic', 'ui'], sideEffects: false,
+    candidates: [{ backend: 'craft-anything', op: 'tools' }],
+  },
 };
 
 const REVERSE = new Map();

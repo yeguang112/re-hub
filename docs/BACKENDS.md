@@ -35,6 +35,25 @@ MCP 侧等价：`rehub_install { only:["jadx"], dryRun:false }`（默认 dry-run
 
 Craft Anything 安装后会自动注册子 MCP（`craft-anything-cli mcp --all-tools --deep`），可经 `rehub_mcp backend=craft-anything` 调用 321 个工具；clean-room 模式去掉 `--deep` 即可。
 
+## 1.6 Craft Anything 的紧凑调用层（省上下文）
+
+321 个工具的完整目录是 ~129 KB JSON（≈30k tokens），整表进上下文会挤爆预算、还会让模型选错工具。所以网关只暴露三个小入口，**skill 里也禁止整表打印**：
+
+| 入口 | 返回 | 实测体积 |
+|---|---|---|
+| `rehub_exec backend=craft-anything op=tools query=<词> [limit=12]` | 命中的工具（tool/title/toolset/needsTarget/摘要≤110 字） | 0.8 KB |
+| `rehub_exec backend=craft-anything op=capability name=<能力> ...` | 直接执行常用能力，返回结构化结果 | 0.8–3.5 KB |
+| `rehub_exec backend=craft-anything op=commands` | 只回 toolset 计数 + 能力名 + 提示，**不回全表** | 1.1 KB |
+| `op=commands raw:true` | 完整 321 条（仅供程序处理，模型侧不要用） | 129 KB |
+
+常用能力（`op=capability name=`）：`triage`（目标识别+下一步建议）、`open_target`、`functions_list`、`function_pseudocode`、`function_disassemble`、`strings_list`、`imports_list`、`web_page_inspect`、`android_package`、`unpack_packed`。
+
+规则：
+1. **先 `triage`**；需要具体工具再 `op=tools query=...` 检索（不要 `op=commands`）。
+2. 能力封装会做参数白名单与必填校验，未知参数直接报错，避免拼错命令行。
+3. 读目标内部（伪代码/字符串/导入/解包）需要 `deep:true`；不加是 clean-room，会返回 `feature_missing` + 提示，不会误读。
+4. 有副作用的能力（如解包写目录）仍需确认落点：`outputDirectory` 必须不存在，且不覆盖已有文件。
+
 | id | 来源 | 约大小 | 落地位置 |
 |---|---|---|---|
 | `jadx` | skylot/jadx | 70MB | `tools/jadx/`（config.jadxHome） |
